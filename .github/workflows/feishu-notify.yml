@@ -23,10 +23,10 @@ jobs:
             提交信息：${context.payload.commits?.[0]?.message || '(无提交信息)'}
             `;
 
-            // 2. 构造飞书请求体（V1 格式，无需 timestamp 和 sign）
+            // 2. 构造飞书请求体
             const requestBody = {
-              msg_type: 'text',           // ✅ 必须字段
-              content: { text: content }  // ✅ 消息内容
+              msg_type: 'text',
+              content: { text: content }
             };
 
             // 3. 发送请求到飞书
@@ -36,12 +36,14 @@ jobs:
                 body: JSON.stringify(requestBody)
               });
               console.log('✅ 通知已发送到飞书，响应状态：', response.status);
+              console.log('📩 飞书返回内容：', JSON.stringify(response.data));
             } catch (error) {
               console.error('❌ 发送失败：', error.message);
               if (error.response) {
-                console.error('🔍 飞书返回：', JSON.stringify(error.response.data));
+                console.error('🔍 飞书返回的错误详情：', JSON.stringify(error.response.data));
+              } else {
+                console.error('🔍 未收到飞书响应，原始错误：', error);
               }
             }
         env:
-          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}     // 只需 V1 webhook 地址
-          // FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}   // V1 不需要，可删除此行
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
