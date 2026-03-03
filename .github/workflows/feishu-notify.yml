@@ -1,0 +1,65 @@
+name: Feishu Notification
+on:
+  # 触发条件：可根据需求修改（如 push、pull_request、release 等）
+  push:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification to Feishu
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const crypto = require('crypto');
+            const fetch = require('node-fetch');
+            
+            // 1. 准备参数
+            const webhook = process.env.FEISHU_WEBHOOK;
+            const secret = process.env.FEISHU_SECRET;
+            const timestamp = Date.now();
+            const content = `
+            🚨 GitHub 仓库事件通知
+            仓库：${context.repo.owner}/${context.repo.repo}
+            事件类型：${context.eventName}
+            提交人：${context.actor}
+            分支：${context.ref.replace('refs/heads/', '')}
+            `;
+
+            // 2. 生成飞书签名（如果开启了签名验证才需要）
+            let sign = '';
+            if (secret) {
+              const stringToSign = `${timestamp}\n${secret}`;
+              sign = crypto.createHmac('sha256', secret)
+                .update(stringToSign)
+                .digest('base64');
+            }
+
+            // 3. 构造飞书请求体
+            const body = {
+              msg_type: 'text',
+              content: { text: content },
+              timestamp: timestamp.toString(),
+              sign: sign
+            };
+
+            // 4. 发送请求到飞书
+            await fetch(webhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            }).then(res => {
+              if (res.ok) {
+                console.log('通知已发送到飞书');
+              } else {
+                console.error('发送失败：', res.statusText);
+                res.text().then(text => console.error('飞书返回：', text));
+              }
+            }).catch(err => {
+              console.error('请求异常：', err);
+            });
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
